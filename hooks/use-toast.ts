@@ -14,7 +14,7 @@ type ToastContextType = {
   toasts: Toast[]
 }
 
-const ToastContext = React.createContext<ToastContextType | undefined>(undefined)
+const ToastContext = React.createContext<ToastContextType | null>(null)
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = React.useState<Toast[]>([])
@@ -45,8 +45,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
 export function useToast() {
   const context = React.useContext(ToastContext)
-  if (!context) {
-    throw new Error("useToast must be used within ToastProvider")
+  if (context === null) {
+  throw new Error("useToast must be used within ToastProvider")
+}
+  
   }
   return context
 }
