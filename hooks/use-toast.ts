@@ -10,6 +10,7 @@ type Toast = {
 
 type ToastContextType = {
   toast: (toast: Omit<Toast, "id">) => void
+  toasts: Toast[]
 }
 
 const ToastContext = React.createContext<ToastContextType | undefined>(undefined)
@@ -27,7 +28,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <ToastContext.Provider value={{ toast }}>
+    <ToastContext.Provider value={{ toast, toasts }}>
       {children}
       <div className="fixed bottom-4 right-4 space-y-2">
         {toasts.map((t) => (
