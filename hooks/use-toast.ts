@@ -6,6 +6,7 @@ type Toast = {
   id: string
   title?: string
   description?: string
+  action?: React.ReactNode
 }
 
 type ToastContextType = {
