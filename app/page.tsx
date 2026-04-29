@@ -41,7 +41,7 @@ export default function Home() {
       </section>
 
       {/* SERVICES */}
-      <section id="services" className="py-24 text-center px-6">
+      <section id="services" className="py-32 text-center px-6">
         <h2 className="text-3xl font-serif text-yellow-500 mb-12">
           Our Services
         </h2>
