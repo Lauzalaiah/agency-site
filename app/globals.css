@@ -1,42 +1,56 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-/* VARIABLES (tu peux garder ton style luxe) */
+/* VARIABLES */
 :root {
   --background: #000000;
   --foreground: #ffffff;
-
-  --primary: #eab308; /* jaune luxe */
+  --primary: #eab308;
   --border: rgba(234, 179, 8, 0.2);
 }
 
 /* BASE */
-@layer base {
-  * {
-    @apply border-[color:var(--border)];
-  }
-
-  body {
-    @apply bg-black text-white antialiased;
-  }
+* {
+  border-color: var(--border);
 }
 
-/* COMPOSANTS CUSTOM (optionnel mais stylé) */
-@layer components {
-  .container-center {
-    @apply max-w-6xl mx-auto px-6;
-  }
+body {
+  background: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+}
 
-  .section-title {
-    @apply text-3xl md:text-4xl font-serif text-yellow-500 text-center;
-  }
+/* COMPOSANTS */
+.container-center {
+  max-width: 72rem;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
 
-  .card {
-    @apply border border-yellow-500/20 rounded-lg p-6 bg-black;
-  }
+.section-title {
+  font-size: 2rem;
+  font-family: var(--font-serif);
+  color: #eab308;
+  text-align: center;
+}
 
-  .btn-primary {
-    @apply bg-yellow-500 text-black px-6 py-3 rounded-md font-semibold hover:bg-yellow-400 transition;
-  }
+.card {
+  border: 1px solid rgba(234, 179, 8, 0.2);
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  background: black;
+}
+
+.btn-primary {
+  background: #eab308;
+  color: black;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.375rem;
+  font-weight: 600;
+  transition: 0.2s;
+}
+
+.btn-primary:hover {
+  background: #facc15;
 }
