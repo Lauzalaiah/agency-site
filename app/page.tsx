@@ -1,3 +1,5 @@
+"use client"
+
 export default function Home() {
   return (
     <div className="bg-black text-white min-h-screen font-sans">
@@ -89,7 +91,7 @@ export default function Home() {
         </ul>
       </section>
 
-      {/* FORM + TELEGRAM */}
+      {/* FORM */}
       <section id="apply" className="py-24 text-center px-6">
         <h3 className="text-3xl font-serif text-yellow-500 mb-10">
           Apply for Private Management →
@@ -113,6 +115,9 @@ export default function Home() {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(data),
             })
+
+            // 👉 Redirection Telegram après submit
+            window.open("https://t.me/Leofm_leads_bot", "_blank")
 
             alert("Application sent ✅")
             form.reset()
