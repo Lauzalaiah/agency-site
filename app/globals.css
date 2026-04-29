@@ -54,3 +54,7 @@ body {
 .btn-primary:hover {
   background: #facc15;
 }
+
+html {
+  scroll-behavior: smooth;
+}
