@@ -1,5 +1,7 @@
 "use client"
 
+import ApplyForm from "@/components/apply-form"
+
 export default function Home() {
   return (
     <div className="bg-black text-white min-h-screen font-sans">
@@ -78,7 +80,7 @@ export default function Home() {
       </section>
 
       {/* WHY JOIN */}
-      <section className="py-24 text-center">
+      <section id="process" className="py-24 text-center">
         <h3 className="text-3xl font-serif text-yellow-500 mb-8">
           Why Join Our Agency
         </h3>
@@ -97,48 +99,14 @@ export default function Home() {
           Apply for Private Management →
         </h3>
 
-        <form
-          onSubmit={async (e) => {
-            e.preventDefault()
-
-            const form = e.target as HTMLFormElement
-
-            const data = {
-              name: (form.name as any).value,
-              instagram: (form.instagram as any).value,
-              country: (form.country as any).value,
-              email: (form.email as any).value,
-            }
-
-            await fetch("/api/apply", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(data),
-            })
-
-            // 👉 Redirection Telegram après submit
-            window.open("https://t.me/Leofm_leads_bot", "_blank")
-
-            alert("Application sent ✅")
-            form.reset()
-          }}
-          className="max-w-3xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4"
-        >
-          <input name="name" placeholder="Name" className="p-3 bg-black border border-gray-700" required />
-          <input name="instagram" placeholder="Instagram / Social Media" className="p-3 bg-black border border-gray-700" required />
-          <input name="country" placeholder="Country" className="p-3 bg-black border border-gray-700" required />
-          <input name="email" placeholder="Email" className="p-3 bg-black border border-gray-700" required />
-
-          <button className="col-span-2 bg-yellow-500 text-black py-3 font-semibold">
-            Submit Application
-          </button>
-        </form>
+        <ApplyForm />
       </section>
 
       {/* FOOTER */}
       <footer className="text-center text-gray-500 py-10 border-t border-yellow-500/10">
         © 2026 Leo OFM Elite
       </footer>
+
     </div>
   )
 }
