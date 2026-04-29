@@ -4,12 +4,13 @@ import { useState } from "react"
 
 export default function ApplyForm() {
   const [loading, setLoading] = useState(false)
+  const [success, setSuccess] = useState(false)
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setLoading(true)
 
-    const form = e.target as HTMLFormElement
+    const form = e.currentTarget
     const formData = new FormData(form)
 
     const data = {
@@ -19,27 +20,77 @@ export default function ApplyForm() {
       email: formData.get("email"),
     }
 
-    await fetch("/api/apply", {
-      method: "POST",
-      body: JSON.stringify(data),
-    })
+    try {
+      await fetch("/api/apply", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      })
 
-    // redirection Telegram
-    window.location.href = "https://t.me/Leofm_leads_bot"
+      setSuccess(true)
+      form.reset()
+
+      // 👉 redirection Telegram (propre après succès)
+      setTimeout(() => {
+        window.location.href = "https://t.me/Leofm_leads_bot"
+      }, 1500)
+
+    } catch (error) {
+      console.error("Erreur envoi :", error)
+    }
 
     setLoading(false)
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 max-w-xl mx-auto">
-      <input name="name" placeholder="Name" className="w-full p-3 bg-black border border-yellow-500/20" />
-      <input name="instagram" placeholder="Instagram" className="w-full p-3 bg-black border border-yellow-500/20" />
-      <input name="country" placeholder="Country" className="w-full p-3 bg-black border border-yellow-500/20" />
-      <input name="email" placeholder="Email" className="w-full p-3 bg-black border border-yellow-500/20" />
+    <form
+      onSubmit={handleSubmit}
+      className="max-w-2xl mx-auto grid gap-4"
+    >
+      <input
+        name="name"
+        placeholder="Name"
+        required
+        className="p-3 bg-black border border-yellow-500/20 rounded"
+      />
 
-      <button className="btn-primary w-full">
+      <input
+        name="instagram"
+        placeholder="Instagram / Social Media"
+        required
+        className="p-3 bg-black border border-yellow-500/20 rounded"
+      />
+
+      <input
+        name="country"
+        placeholder="Country"
+        required
+        className="p-3 bg-black border border-yellow-500/20 rounded"
+      />
+
+      <input
+        name="email"
+        type="email"
+        placeholder="Email"
+        required
+        className="p-3 bg-black border border-yellow-500/20 rounded"
+      />
+
+      <button
+        type="submit"
+        disabled={loading}
+        className="bg-yellow-500 text-black py-3 rounded font-semibold hover:bg-yellow-400 transition"
+      >
         {loading ? "Sending..." : "Submit Application"}
       </button>
+
+      {success && (
+        <p className="text-green-400 text-sm">
+          Application sent successfully 🚀 Redirecting to Telegram...
+        </p>
+      )}
     </form>
   )
 }
