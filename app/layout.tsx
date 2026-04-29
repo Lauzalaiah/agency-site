@@ -1,5 +1,4 @@
-"use client"
-import type { Metadata, Viewport } from 'next'
+import type { Viewport } from 'next'
 import { Playfair_Display, Inter } from 'next/font/google'
 import './globals.css'
 
@@ -15,9 +14,9 @@ const inter = Inter({
   display: 'swap',
 })
 
-export const metadata: Metadata = {
-  title: 'Fansly Agency Mastery - Formation Premium',
-  description: 'Apprenez à gérer une agence Fansly de A à Z avec nos 10 modules de formation premium.',
+export const metadata = {
+  title: 'Leo OFM Elite',
+  description: 'We scale creators to $10k+/month',
   icons: {
     icon: '/favicon.png',
     apple: '/favicon.png',
@@ -25,16 +24,16 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#1a2e1a',
+  themeColor: '#000000',
 }
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode
-}>) {
+}) {
   return (
-    <html lang="fr">
+    <html lang="en">
       <body className={`${playfair.variable} ${inter.variable} font-sans antialiased`}>
         {children}
       </body>
