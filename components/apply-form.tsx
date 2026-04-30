@@ -5,23 +5,35 @@ import { useState } from "react"
 export default function ApplyForm() {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [error, setError] = useState("")
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setLoading(true)
+    setError("")
 
     const form = e.currentTarget
     const formData = new FormData(form)
+
+    const token = (window as any).turnstile?.getResponse()
+
+    if (!token) {
+      setError("Please verify you're human")
+      setLoading(false)
+      return
+    }
 
     const data = {
       name: formData.get("name"),
       instagram: formData.get("instagram"),
       country: formData.get("country"),
       email: formData.get("email"),
+      website: formData.get("website"), // honeypot
+      token: token,
     }
 
     try {
-      await fetch("/api/apply", {
+      const res = await fetch("/api/apply", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -29,14 +41,19 @@ export default function ApplyForm() {
         body: JSON.stringify(data),
       })
 
+      if (!res.ok) {
+        throw new Error("Failed to send")
+      }
+
       setSuccess(true)
       form.reset()
 
-      
-      
+      // reset captcha
+      ;(window as any).turnstile?.reset()
 
-    } catch (error) {
-      console.error("Erreur envoi :", error)
+    } catch (err) {
+      console.error(err)
+      setError("Something went wrong. Try again.")
     }
 
     setLoading(false)
@@ -74,16 +91,21 @@ export default function ApplyForm() {
         placeholder="Email"
         required
         className="p-3 bg-black border border-yellow-500/20 rounded"
-        
-      <input
-         type="text"
-         name="website"
-         style={{ display: "none" }}
-         autoComplete="off"
       />
 
-<input type="hidden" name="cf-turnstile-response" id="cf-turnstile-response" />
+      {/* 🛡️ Honeypot (invisible) */}
+      <input
+        type="text"
+        name="website"
+        style={{ display: "none" }}
+        autoComplete="off"
       />
+
+      {/* 🛡️ Cloudflare Turnstile */}
+      <div
+        className="cf-turnstile"
+        data-sitekey="TON_SITE_KEY"
+      ></div>
 
       <button
         type="submit"
@@ -93,25 +115,31 @@ export default function ApplyForm() {
         {loading ? "Sending..." : "Submit Application"}
       </button>
 
-{success && (
-  <div className="space-y-4 text-center">
-    <p className="text-green-400 text-sm">
-      Application sent successfully 🚀
-    </p>
+      {error && (
+        <p className="text-red-400 text-sm text-center">
+          {error}
+        </p>
+      )}
 
-    <p className="text-gray-400 text-sm">
-      Final step: contact us on Telegram to validate your application.
-    </p>
+      {success && (
+        <div className="space-y-4 text-center">
+          <p className="text-green-400 text-sm">
+            Application sent successfully 🚀
+          </p>
 
-    <a
-      href="https://t.me/leofmelite_bot?start=lead"
-      target="_blank"
-      className="inline-block bg-yellow-500 text-black px-6 py-3 rounded font-semibold hover:bg-yellow-400 transition"
-    >
-      Continue on Telegram →
-    </a>
-  </div>
-)}
+          <p className="text-gray-400 text-sm">
+            Final step: contact us on Telegram to validate your application.
+          </p>
+
+          <a
+            href="https://t.me/leofmelite_bot?start=lead"
+            target="_blank"
+            className="inline-block bg-yellow-500 text-black px-6 py-3 rounded font-semibold hover:bg-yellow-400 transition"
+          >
+            Continue on Telegram →
+          </a>
+        </div>
+      )}
     </form>
   )
 }
