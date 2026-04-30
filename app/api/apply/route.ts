@@ -1,17 +1,88 @@
 import { NextResponse } from "next/server"
 
+// 🧠 mémoire simple (fonctionne sur Node runtime)
+const rateMap = new Map<string, { count: number; time: number }>()
+
+// 🧠 liste de domaines jetables (tu peux en ajouter)
+const disposableDomains = [
+  "mailinator.com",
+  "10minutemail.com",
+  "tempmail.com",
+  "yopmail.com",
+  "guerrillamail.com",
+  "trashmail.com",
+  "sharklasers.com",
+]
+
+// 🧠 scoring intelligent
+function scoreLead({
+  email,
+  instagram,
+  country,
+}: {
+  email: string
+  instagram: string
+  country: string
+}) {
+  let score = 0
+
+  // email pro = meilleur
+  if (!email.includes("gmail") && !email.includes("yahoo")) score += 2
+
+  // instagram crédible
+  if (instagram.length > 5) score += 1
+
+  // pays (tu peux adapter)
+  if (["France", "USA", "UK", "Canada"].includes(country)) score += 2
+
+  return score
+}
+
+// 🧠 classement
+function getQuality(score: number) {
+  if (score >= 4) return "🔥 HIGH"
+  if (score >= 2) return "⚡ MEDIUM"
+  return "❄️ LOW"
+}
+
 export async function POST(req: Request) {
   try {
-    const body = await req.json()
+    const ip =
+      req.headers.get("x-forwarded-for") ||
+      req.headers.get("x-real-ip") ||
+      "unknown"
 
+    const body = await req.json()
     const { name, instagram, country, email, website, token } = body
 
-    // 🛡️ 1. Honeypot (anti-bot invisible)
+    // 🛡️ 1. Honeypot
     if (website) {
       return NextResponse.json({ error: "Bot detected" }, { status: 400 })
     }
 
-    // 🛡️ 2. Vérification Turnstile (Cloudflare)
+    // 🛡️ 2. Rate limit
+    const now = Date.now()
+    const windowMs = Number(process.env.RATE_LIMIT_WINDOW_MS || 60000)
+    const max = Number(process.env.RATE_LIMIT_MAX || 5)
+
+    const user = rateMap.get(ip) || { count: 0, time: now }
+
+    if (now - user.time > windowMs) {
+      user.count = 0
+      user.time = now
+    }
+
+    user.count += 1
+    rateMap.set(ip, user)
+
+    if (user.count > max) {
+      return NextResponse.json(
+        { error: "Too many requests" },
+        { status: 429 }
+      )
+    }
+
+    // 🛡️ 3. Turnstile
     if (!token) {
       return NextResponse.json({ error: "Captcha missing" }, { status: 400 })
     }
@@ -33,39 +104,41 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Captcha failed" }, { status: 400 })
     }
 
-    // 🛡️ 3. Validation des champs
+    // 🛡️ 4. Validation
     if (!name || !instagram || !country || !email) {
-      return NextResponse.json(
-        { error: "Missing fields" },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: "Missing fields" }, { status: 400 })
     }
 
     if (!email.includes("@")) {
+      return NextResponse.json({ error: "Invalid email" }, { status: 400 })
+    }
+
+    // 🛡️ 5. Email jetable
+    const domain = email.split("@")[1]
+    if (disposableDomains.includes(domain)) {
       return NextResponse.json(
-        { error: "Invalid email" },
+        { error: "Disposable email not allowed" },
         { status: 400 }
       )
     }
 
-    if (instagram.length < 3) {
-      return NextResponse.json(
-        { error: "Invalid Instagram" },
-        { status: 400 }
-      )
-    }
+    // 🧠 6. Scoring
+    const score = scoreLead({ email, instagram, country })
+    const quality = getQuality(score)
 
-    // 🔥 4. Format message Telegram (clean)
+    // 🔥 7. Message Telegram enrichi
     const message = `
-🔥 NEW LEAD
+🚀 NEW LEAD ${quality}
 
 👤 Name: ${name}
 📸 Instagram: ${instagram}
 🌍 Country: ${country}
 📧 Email: ${email}
-    `
 
-    // 🚀 5. Envoi Telegram
+⭐ Score: ${score}/5
+🌐 IP: ${ip}
+`
+
     const res = await fetch(
       `https://api.telegram.org/bot${process.env.TELEGRAM_TOKEN}/sendMessage`,
       {
