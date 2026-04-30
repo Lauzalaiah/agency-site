@@ -15,7 +15,9 @@ export default function ApplyForm() {
     const form = e.currentTarget
     const formData = new FormData(form)
 
-    const token = (window as any).turnstile?.getResponse()
+   const token = document.querySelector(
+  'textarea[name="cf-turnstile-response"]'
+)?.value || ""
 
     if (!token) {
       setError("Please verify you're human")
