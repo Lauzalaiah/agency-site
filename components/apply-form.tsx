@@ -74,6 +74,15 @@ export default function ApplyForm() {
         placeholder="Email"
         required
         className="p-3 bg-black border border-yellow-500/20 rounded"
+        
+      <input
+         type="text"
+         name="website"
+         style={{ display: "none" }}
+         autoComplete="off"
+      />
+
+<input type="hidden" name="cf-turnstile-response" id="cf-turnstile-response" />
       />
 
       <button
