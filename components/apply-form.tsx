@@ -15,9 +15,12 @@ export default function ApplyForm() {
     const form = e.currentTarget
     const formData = new FormData(form)
 
-   const token = document.querySelector(
-  'textarea[name="cf-turnstile-response"]'
-)?.value || ""
+    // 🔐 récupération du token Turnstile (TS SAFE)
+    const el = document.querySelector(
+      'textarea[name="cf-turnstile-response"]'
+    ) as HTMLTextAreaElement | null
+
+    const token = el?.value ?? ""
 
     if (!token) {
       setError("Please verify you're human")
@@ -50,8 +53,15 @@ export default function ApplyForm() {
       setSuccess(true)
       form.reset()
 
-      // reset captcha
+      // 🔁 reset captcha
       ;(window as any).turnstile?.reset()
+
+      // 👇 scroll vers bouton Telegram (UX clean)
+      setTimeout(() => {
+        document
+          .querySelector("a[href*='t.me']")
+          ?.scrollIntoView({ behavior: "smooth" })
+      }, 200)
 
     } catch (err) {
       console.error(err)
@@ -95,7 +105,7 @@ export default function ApplyForm() {
         className="p-3 bg-black border border-yellow-500/20 rounded"
       />
 
-      {/* 🛡️ Honeypot (invisible) */}
+      {/* 🛡️ Honeypot invisible */}
       <input
         type="text"
         name="website"
@@ -136,6 +146,7 @@ export default function ApplyForm() {
           <a
             href="https://t.me/leofmelite_bot?start=lead"
             target="_blank"
+            rel="noopener noreferrer"
             className="inline-block bg-yellow-500 text-black px-6 py-3 rounded font-semibold hover:bg-yellow-400 transition"
           >
             Continue on Telegram →
