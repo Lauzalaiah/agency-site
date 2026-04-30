@@ -1,5 +1,6 @@
 import type { Viewport } from 'next'
 import { Playfair_Display, Inter } from 'next/font/google'
+import Script from "next/script"
 import './globals.css'
 
 const playfair = Playfair_Display({
@@ -18,15 +19,15 @@ export const metadata = {
   title: 'Leo OFM Elite',
   description: 'We scale creators to $10k+/month',
   icons: {
-  icon: [
-    { url: '/favicon.ico' },
-    { url: '/android-chrome.png', sizes: '512x512', type: 'image/png' },
-  ],
-  shortcut: ['/favicon.ico'],
-  apple: [
-    { url: '/apple-icon.png', sizes: '180x180', type: 'image/png' },
-  ],
-}
+    icon: [
+      { url: '/favicon.ico' },
+      { url: '/android-chrome.png', sizes: '512x512', type: 'image/png' },
+    ],
+    shortcut: ['/favicon.ico'],
+    apple: [
+      { url: '/apple-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
+  },
 }
 
 export const viewport: Viewport = {
@@ -41,6 +42,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${playfair.variable} ${inter.variable} font-sans antialiased`}>
+
+        {/* 🔐 Cloudflare Turnstile */}
+        <Script
+          src="https://challenges.cloudflare.com/turnstile/v0/api.js"
+          strategy="afterInteractive"
+        />
+
         {children}
       </body>
     </html>
