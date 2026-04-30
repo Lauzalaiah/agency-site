@@ -18,10 +18,14 @@ export const metadata = {
   title: 'Leo OFM Elite',
   description: 'We scale creators to $10k+/month',
   icons: {
-  icon: "/favicon.ico",
-  shortcut: "/favicon.ico",
-  apple: "/apple-icon.png",
-},
+    icon: [
+      { url: '/favicon.ico' },
+    ],
+    shortcut: ['/favicon.ico'],
+    apple: [
+      { url: '/apple-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
+  },
 }
 
 export const viewport: Viewport = {
