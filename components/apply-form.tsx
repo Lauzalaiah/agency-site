@@ -32,10 +32,8 @@ export default function ApplyForm() {
       setSuccess(true)
       form.reset()
 
-      // 👉 redirection Telegram (propre après succès)
-      setTimeout(() => {
-        window.location.href = "https://t.me/Leofm_leads_bot"
-      }, 1500)
+      
+      
 
     } catch (error) {
       console.error("Erreur envoi :", error)
@@ -86,11 +84,25 @@ export default function ApplyForm() {
         {loading ? "Sending..." : "Submit Application"}
       </button>
 
-      {success && (
-        <p className="text-green-400 text-sm">
-          Application sent successfully 🚀 Redirecting to Telegram...
-        </p>
-      )}
+{success && (
+  <div className="space-y-4 text-center">
+    <p className="text-green-400 text-sm">
+      Application sent successfully 🚀
+    </p>
+
+    <p className="text-gray-400 text-sm">
+      Final step: contact us on Telegram to validate your application.
+    </p>
+
+    <a
+      href="https://t.me/leofmelite_bot?start=lead"
+      target="_blank"
+      className="inline-block bg-yellow-500 text-black px-6 py-3 rounded font-semibold hover:bg-yellow-400 transition"
+    >
+      Continue on Telegram →
+    </a>
+  </div>
+)}
     </form>
   )
 }
