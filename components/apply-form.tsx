@@ -6,6 +6,14 @@ export default function ApplyForm() {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState("")
+  const [captchaToken, setCaptchaToken] = useState("")
+
+  // 🔐 Callback Turnstile (FIABLE)
+  if (typeof window !== "undefined") {
+    ;(window as any).onTurnstileSuccess = (token: string) => {
+      setCaptchaToken(token)
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -15,12 +23,7 @@ export default function ApplyForm() {
     const form = e.currentTarget
     const formData = new FormData(form)
 
-    // 🔐 récupération du token Turnstile (TS SAFE)
-    const el = document.querySelector(
-      'textarea[name="cf-turnstile-response"]'
-    ) as HTMLTextAreaElement | null
-
-    const token = el?.value ?? ""
+    const token = captchaToken
 
     if (!token) {
       setError("Please verify you're human")
@@ -55,8 +58,9 @@ export default function ApplyForm() {
 
       // 🔁 reset captcha
       ;(window as any).turnstile?.reset()
+      setCaptchaToken("")
 
-      // 👇 scroll vers bouton Telegram (UX clean)
+      // 👇 scroll vers Telegram
       setTimeout(() => {
         document
           .querySelector("a[href*='t.me']")
@@ -105,7 +109,7 @@ export default function ApplyForm() {
         className="p-3 bg-black border border-yellow-500/20 rounded"
       />
 
-      {/* 🛡️ Honeypot invisible */}
+      {/* 🛡️ Honeypot */}
       <input
         type="text"
         name="website"
@@ -113,10 +117,11 @@ export default function ApplyForm() {
         autoComplete="off"
       />
 
-      {/* 🛡️ Cloudflare Turnstile */}
+      {/* 🛡️ Turnstile FIX */}
       <div
         className="cf-turnstile"
         data-sitekey="0x4AAAAAADGigDvm8_0389OF"
+        data-callback="onTurnstileSuccess"
       ></div>
 
       <button
