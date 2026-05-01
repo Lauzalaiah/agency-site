@@ -2,6 +2,8 @@ import { NextResponse } from "next/server"
 import crypto from "crypto"
 import { createClient } from "@supabase/supabase-js"
 
+export const runtime = "nodejs"
+
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -43,12 +45,12 @@ export async function POST(req: Request) {
     const body = await req.json()
     const { name, instagram, country, email, website, token } = body
 
-    // 🛡️ honeypot
+    // 🛡️ Honeypot
     if (website) {
       return NextResponse.json({ error: "Bot detected" }, { status: 400 })
     }
 
-    // 🛡️ rate limit
+    // 🛡️ Rate limit
     const now = Date.now()
     const windowMs = 60000
     const max = 5
@@ -64,15 +66,24 @@ export async function POST(req: Request) {
     rateMap.set(ip, user)
 
     if (user.count > max) {
-      return NextResponse.json({ error: "Too many requests" }, { status: 429 })
+      return NextResponse.json(
+        { error: "Too many requests" },
+        { status: 429 }
+      )
     }
 
-    // 🛡️ captcha
+    // 🛡️ CAPTCHA Turnstile
+    if (!token) {
+      return NextResponse.json({ error: "Captcha missing" }, { status: 400 })
+    }
+
     const verifyRes = await fetch(
       "https://challenges.cloudflare.com/turnstile/v0/siteverify",
       {
         method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
         body: `secret=${process.env.TURNSTILE_SECRET_KEY}&response=${token}`,
       }
     )
@@ -83,13 +94,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Captcha failed" }, { status: 400 })
     }
 
-    // 🛡️ validation
+    // 🛡️ Validation
     if (!name || !instagram || !country || !email) {
-      return NextResponse.json({ error: "Missing fields" }, { status: 400 })
+      return NextResponse.json(
+        { error: "Missing fields" },
+        { status: 400 }
+      )
     }
 
     if (!email.includes("@")) {
-      return NextResponse.json({ error: "Invalid email" }, { status: 400 })
+      return NextResponse.json(
+        { error: "Invalid email" },
+        { status: 400 }
+      )
     }
 
     const domain = email.split("@")[1]
@@ -100,15 +117,15 @@ export async function POST(req: Request) {
       )
     }
 
-    // 🧠 scoring
+    // 🧠 Scoring
     const score = scoreLead({ email, instagram, country })
     const quality = getQuality(score)
 
-    // 🔥 token unique
+    // 🔥 Token unique
     const leadToken = crypto.randomUUID()
 
-    // 💾 stockage supabase
-    await supabase.from("leads").insert([
+    // 💾 Insert Supabase avec check erreur
+    const { data, error } = await supabase.from("leads").insert([
       {
         token: leadToken,
         name,
@@ -122,7 +139,15 @@ export async function POST(req: Request) {
       },
     ])
 
-    // 🤖 telegram
+    if (error) {
+      console.error("SUPABASE ERROR:", error)
+      return NextResponse.json(
+        { error: "Database error" },
+        { status: 500 }
+      )
+    }
+
+    // 🤖 Telegram
     const telegramLink = `https://t.me/leofmelite_bot?start=lead_${leadToken}`
 
     const message = `
@@ -141,7 +166,9 @@ export async function POST(req: Request) {
       `https://api.telegram.org/bot${process.env.TELEGRAM_TOKEN}/sendMessage`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           chat_id: process.env.TELEGRAM_CHAT_ID,
           text: message,
@@ -154,7 +181,11 @@ export async function POST(req: Request) {
       telegramLink,
     })
   } catch (err) {
-    console.error(err)
-    return NextResponse.json({ error: "Server error" }, { status: 500 })
+    console.error("API ERROR:", err)
+
+    return NextResponse.json(
+      { error: "Server error" },
+      { status: 500 }
+    )
   }
 }
