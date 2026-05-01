@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server"
+import crypto from "crypto"
 
-// 🧠 mémoire simple (fonctionne sur Node runtime)
+// 🧠 Rate limit mémoire
 const rateMap = new Map<string, { count: number; time: number }>()
 
-// 🧠 liste de domaines jetables (tu peux en ajouter)
+// 🧠 stockage temporaire des leads (⚠️ reset si server reboot)
+const leadsStore: Record<string, any> =
+  (globalThis as any).leadsStore ||
+  ((globalThis as any).leadsStore = {})
+
+// 🧠 domaines jetables
 const disposableDomains = [
   "mailinator.com",
   "10minutemail.com",
@@ -14,7 +20,7 @@ const disposableDomains = [
   "sharklasers.com",
 ]
 
-// 🧠 scoring intelligent
+// 🧠 scoring
 function scoreLead({
   email,
   instagram,
@@ -26,19 +32,13 @@ function scoreLead({
 }) {
   let score = 0
 
-  // email pro = meilleur
   if (!email.includes("gmail") && !email.includes("yahoo")) score += 2
-
-  // instagram crédible
   if (instagram.length > 5) score += 1
-
-  // pays (tu peux adapter)
   if (["France", "USA", "UK", "Canada"].includes(country)) score += 2
 
   return score
 }
 
-// 🧠 classement
 function getQuality(score: number) {
   if (score >= 4) return "🔥 HIGH"
   if (score >= 2) return "⚡ MEDIUM"
@@ -94,7 +94,7 @@ export async function POST(req: Request) {
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
         },
-        body: `secret=${process.env.TURNSTILE_SECRET_KEY}&response=${token}`,
+        body: `secret=${process.env.TURNSTILE_SECRET_KEY}&response=${token}&remoteip=${ip}`,
       }
     )
 
@@ -114,7 +114,7 @@ export async function POST(req: Request) {
     }
 
     // 🛡️ 5. Email jetable
-    const domain = email.split("@")[1]
+    const domain = email.split("@")[1]?.toLowerCase()
     if (disposableDomains.includes(domain)) {
       return NextResponse.json(
         { error: "Disposable email not allowed" },
@@ -126,7 +126,23 @@ export async function POST(req: Request) {
     const score = scoreLead({ email, instagram, country })
     const quality = getQuality(score)
 
-    // 🔥 7. Message Telegram enrichi
+    // 🔐 7. Génération TOKEN unique
+    const leadToken = crypto.randomUUID()
+
+    // 🗄️ stockage temporaire
+    leadsStore[leadToken] = {
+      name,
+      instagram,
+      email,
+      score,
+      createdAt: Date.now(),
+      used: false,
+    }
+
+    // 🔗 lien Telegram unique
+    const telegramLink = `https://t.me/leofmelite_bot?start=lead_${leadToken}`
+
+    // 📩 message Telegram enrichi
     const message = `
 🚀 NEW LEAD ${quality}
 
@@ -137,6 +153,8 @@ export async function POST(req: Request) {
 
 ⭐ Score: ${score}/5
 🌐 IP: ${ip}
+
+👉 Contact: ${telegramLink}
 `
 
     const res = await fetch(
