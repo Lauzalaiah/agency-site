@@ -1,6 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+
+declare global {
+  interface Window {
+    onTurnstileSuccess?: (token: string) => void
+    turnstile?: any
+  }
+}
 
 export default function ApplyForm() {
   const [loading, setLoading] = useState(false)
@@ -8,12 +15,12 @@ export default function ApplyForm() {
   const [error, setError] = useState("")
   const [captchaToken, setCaptchaToken] = useState("")
 
-  // 🔐 Callback Turnstile (FIABLE)
-  if (typeof window !== "undefined") {
-    ;(window as any).onTurnstileSuccess = (token: string) => {
+  // ✅ Callback propre (évite bugs build / hydration)
+  useEffect(() => {
+    window.onTurnstileSuccess = (token: string) => {
       setCaptchaToken(token)
     }
-  }
+  }, [])
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -23,9 +30,7 @@ export default function ApplyForm() {
     const form = e.currentTarget
     const formData = new FormData(form)
 
-    const token = captchaToken
-
-    if (!token) {
+    if (!captchaToken) {
       setError("Please verify you're human")
       setLoading(false)
       return
@@ -36,8 +41,8 @@ export default function ApplyForm() {
       instagram: formData.get("instagram"),
       country: formData.get("country"),
       email: formData.get("email"),
-      website: formData.get("website"), // honeypot
-      token: token,
+      website: formData.get("website"),
+      token: captchaToken,
     }
 
     try {
@@ -49,23 +54,18 @@ export default function ApplyForm() {
         body: JSON.stringify(data),
       })
 
+      const json = await res.json()
+
       if (!res.ok) {
-        throw new Error("Failed to send")
+        throw new Error(json.error || "Failed to send")
       }
 
       setSuccess(true)
       form.reset()
 
-      // 🔁 reset captcha
-      ;(window as any).turnstile?.reset()
+      // reset captcha
+      window.turnstile?.reset()
       setCaptchaToken("")
-
-      // 👇 scroll vers Telegram
-      setTimeout(() => {
-        document
-          .querySelector("a[href*='t.me']")
-          ?.scrollIntoView({ behavior: "smooth" })
-      }, 200)
 
     } catch (err) {
       console.error(err)
@@ -76,10 +76,8 @@ export default function ApplyForm() {
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="max-w-2xl mx-auto grid gap-4"
-    >
+    <form onSubmit={handleSubmit} className="max-w-2xl mx-auto grid gap-4">
+
       <input
         name="name"
         placeholder="Name"
@@ -109,7 +107,7 @@ export default function ApplyForm() {
         className="p-3 bg-black border border-yellow-500/20 rounded"
       />
 
-      {/* 🛡️ Honeypot */}
+      {/* Honeypot */}
       <input
         type="text"
         name="website"
@@ -117,12 +115,12 @@ export default function ApplyForm() {
         autoComplete="off"
       />
 
-      {/* 🛡️ Turnstile FIX */}
+      {/* Turnstile */}
       <div
         className="cf-turnstile"
         data-sitekey="0x4AAAAAADGigDvm8_0389OF"
         data-callback="onTurnstileSuccess"
-      ></div>
+      />
 
       <button
         type="submit"
@@ -142,10 +140,6 @@ export default function ApplyForm() {
         <div className="space-y-4 text-center">
           <p className="text-green-400 text-sm">
             Application sent successfully 🚀
-          </p>
-
-          <p className="text-gray-400 text-sm">
-            Final step: contact us on Telegram to validate your application.
           </p>
 
           <a
