@@ -4,10 +4,18 @@ import { createClient } from "@supabase/supabase-js"
 
 export const runtime = "nodejs"
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+// ✅ SAFE ENV (évite crash build)
+const supabaseUrl = process.env.SUPABASE_URL
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+const turnstileSecret = process.env.TURNSTILE_SECRET_KEY
+const telegramToken = process.env.TELEGRAM_TOKEN
+const telegramChatId = process.env.TELEGRAM_CHAT_ID
+
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error("Missing Supabase env variables")
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey)
 
 const rateMap = new Map<string, { count: number; time: number }>()
 
@@ -19,11 +27,14 @@ const disposableDomains = [
   "guerrillamail.com",
 ]
 
+// --------------------
+// 🧠 SCORING
+// --------------------
 function scoreLead({ email, instagram, country }: any) {
   let score = 0
 
   if (!email.includes("gmail")) score += 2
-  if (instagram.length > 5) score += 1
+  if (instagram?.length > 5) score += 1
   if (["France", "USA", "UK", "Canada"].includes(country)) score += 2
 
   return score
@@ -35,6 +46,9 @@ function getQuality(score: number) {
   return "❄️ LOW"
 }
 
+// --------------------
+// 🚀 API
+// --------------------
 export async function POST(req: Request) {
   try {
     const ip =
@@ -72,9 +86,12 @@ export async function POST(req: Request) {
       )
     }
 
-    // 🛡️ CAPTCHA Turnstile
-    if (!token) {
-      return NextResponse.json({ error: "Captcha missing" }, { status: 400 })
+    // 🛡️ CAPTCHA
+    if (!token || !turnstileSecret) {
+      return NextResponse.json(
+        { error: "Captcha missing" },
+        { status: 400 }
+      )
     }
 
     const verifyRes = await fetch(
@@ -84,14 +101,17 @@ export async function POST(req: Request) {
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
         },
-        body: `secret=${process.env.TURNSTILE_SECRET_KEY}&response=${token}`,
+        body: `secret=${turnstileSecret}&response=${token}`,
       }
     )
 
     const verifyData = await verifyRes.json()
 
     if (!verifyData.success) {
-      return NextResponse.json({ error: "Captcha failed" }, { status: 400 })
+      return NextResponse.json(
+        { error: "Captcha failed" },
+        { status: 400 }
+      )
     }
 
     // 🛡️ Validation
@@ -124,8 +144,8 @@ export async function POST(req: Request) {
     // 🔥 Token unique
     const leadToken = crypto.randomUUID()
 
-    // 💾 Insert Supabase avec check erreur
-    const { data, error } = await supabase.from("leads").insert([
+    // 💾 INSERT DB (avec debug)
+    const { error } = await supabase.from("leads").insert([
       {
         token: leadToken,
         name,
@@ -147,10 +167,11 @@ export async function POST(req: Request) {
       )
     }
 
-    // 🤖 Telegram
-    const telegramLink = `https://t.me/leofmelite_bot?start=lead_${leadToken}`
+    // 🤖 TELEGRAM (non bloquant)
+    if (telegramToken && telegramChatId) {
+      const telegramLink = `https://t.me/leofmelite_bot?start=lead_${leadToken}`
 
-    const message = `
+      const message = `
 🚀 NEW LEAD ${quality}
 
 👤 ${name}
@@ -162,24 +183,33 @@ export async function POST(req: Request) {
 🔗 ${telegramLink}
 `
 
-    await fetch(
-      `https://api.telegram.org/bot${process.env.TELEGRAM_TOKEN}/sendMessage`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          chat_id: process.env.TELEGRAM_CHAT_ID,
-          text: message,
-        }),
+      try {
+        await fetch(
+          `https://api.telegram.org/bot${telegramToken}/sendMessage`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              chat_id: telegramChatId,
+              text: message,
+            }),
+          }
+        )
+      } catch (err) {
+        console.error("TELEGRAM ERROR:", err)
       }
-    )
 
-    return NextResponse.json({
-      success: true,
-      telegramLink,
-    })
+      return NextResponse.json({
+        success: true,
+        telegramLink,
+      })
+    }
+
+    // fallback si telegram absent
+    return NextResponse.json({ success: true })
+
   } catch (err) {
     console.error("API ERROR:", err)
 
