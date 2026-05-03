@@ -1,100 +1,91 @@
-import { NextResponse } from 'next/server'
+import { NextResponse } from "next/server"
 
-declare global {
-  var processedMessages: Record<number, boolean>
-}
+export const runtime = "nodejs"
+
+// ✅ stockage global safe (évite crash)
+const processedMessages =
+  (globalThis as any).__processedMessages ||
+  ((globalThis as any).__processedMessages = {})
 
 export async function POST(req: Request) {
   try {
     const update = await req.json()
 
-    console.log('FULL UPDATE:', JSON.stringify(update))
+    console.log("UPDATE:", JSON.stringify(update))
 
     const TOKEN = process.env.TELEGRAM_BOT_TOKEN
-    if (!TOKEN) throw new Error('Missing TELEGRAM_BOT_TOKEN')
+
+    if (!TOKEN) {
+      console.error("Missing TELEGRAM_BOT_TOKEN")
+      return NextResponse.json({ ok: false })
+    }
 
     // =========================
-    // COMMANDES
+    // /start
     // =========================
-    if (update.message?.text === '/start') {
+    if (update.message?.text === "/start") {
       await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: update.message.chat.id,
-          text: 'Bot ready 🚀'
-        })
-      })
+          text: "Bot ready 🚀",
+        }),
+      }).catch(console.error)
     }
 
     // =========================
     // CALLBACK BUTTONS
     // =========================
     if (update.callback_query) {
-      console.log("BUTTON CLICK DETECTED")
-
       const data = update.callback_query.data
       const chatId = update.callback_query.message.chat.id
       const callbackId = update.callback_query.id
       const messageId = update.callback_query.message.message_id
 
       // 🔒 anti double click
-      const processedMessages = (globalThis as any).processedMessages || {}
-
       if (processedMessages[messageId]) {
         return NextResponse.json({ ok: true })
       }
 
       processedMessages[messageId] = true
-      ;(globalThis as any).processedMessages = processedMessages
 
-      const messageText = update.callback_query.message.text
+      const messageText = update.callback_query.message.text || ""
 
-      const name = messageText?.match(/Name: (.*)/)?.[1]
-      const ig = messageText?.match(/IG: (.*)/)?.[1]
+      const name = messageText.match(/Name: (.*)/)?.[1]
+      const ig = messageText.match(/IG: (.*)/)?.[1]
 
-      let text = ''
-      let status = ''
+      let text = ""
+      let status = ""
 
       // =========================
-      // RESPOND
+      // ACTIONS
       // =========================
-      if (data === 'respond') {
-        status = 'Responded ✅'
-        text = `Hey ${name || ''}! 👋\nTell me more about your goals`
+      if (data === "respond") {
+        status = "Responded ✅"
+        text = `Hey ${name || ""}! 👋\nTell me more about your goals`
 
-        // 🔥 TRACKING + ENVOI DATA COMPLET
-        await fetch("https://www.leofmelite.com/api/respond", {
+        // 🔥 tracking (non bloquant)
+        fetch("https://www.leofmelite.com/api/respond", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             name,
             ig,
             status,
             action: data,
-            priority: messageText?.includes("HIGH") ? "HIGH" : "LOW",
-            country: messageText?.match(/Country: (.*)/)?.[1],
-            ip: messageText?.match(/IP: (.*)/)?.[1]
-          })
-        })
+          }),
+        }).catch(console.error)
       }
 
-      // =========================
-      // FOLLOW UP
-      // =========================
-      if (data === 'follow_up') {
-        status = 'Followed up ⏳'
-        text = 'Just checking — are you still interested?'
+      if (data === "follow_up") {
+        status = "Followed up ⏳"
+        text = "Just checking — are you still interested?"
       }
 
-      // =========================
-      // IGNORE
-      // =========================
-      if (data === 'ignore') {
-        status = 'Ignored ❌'
-        text = 'Lead ignored ❌'
+      if (data === "ignore") {
+        status = "Ignored ❌"
+        text = "Lead ignored ❌"
       }
 
       // =========================
@@ -102,67 +93,70 @@ export async function POST(req: Request) {
       // =========================
       if (text) {
         await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             chat_id: chatId,
-            text
-          })
-        })
+            text,
+          }),
+        }).catch(console.error)
       }
 
       // =========================
       // UPDATE STATUS
       // =========================
       if (status) {
-        const newText = `${messageText}
-
-📌 Status: ${status}`
+        const newText = `${messageText}\n\n📌 Status: ${status}`
 
         await fetch(`https://api.telegram.org/bot${TOKEN}/editMessageText`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             chat_id: chatId,
             message_id: messageId,
-            text: newText
-          })
-        })
+            text: newText,
+          }),
+        }).catch(console.error)
       }
 
       // =========================
       // REMOVE BUTTONS
       // =========================
-      await fetch(`https://api.telegram.org/bot${TOKEN}/editMessageReplyMarkup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          message_id: messageId,
-          reply_markup: { inline_keyboard: [] }
-        })
-      })
+      await fetch(
+        `https://api.telegram.org/bot${TOKEN}/editMessageReplyMarkup`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            message_id: messageId,
+            reply_markup: { inline_keyboard: [] },
+          }),
+        }
+      ).catch(console.error)
 
       // =========================
-      // ANSWER CALLBACK
+      // ACK CALLBACK
       // =========================
-      await fetch(`https://api.telegram.org/bot${TOKEN}/answerCallbackQuery`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          callback_query_id: callbackId
-        })
-      })
+      await fetch(
+        `https://api.telegram.org/bot${TOKEN}/answerCallbackQuery`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            callback_query_id: callbackId,
+          }),
+        }
+      ).catch(console.error)
     }
 
     return NextResponse.json({ ok: true })
-
   } catch (error) {
-    console.error('WEBHOOK ERROR:', error)
-    return NextResponse.json({ error: true }, { status: 500 })
+    console.error("WEBHOOK ERROR:", error)
+    return NextResponse.json({ ok: true }) // ⚠️ important: éviter retry infini Telegram
   }
 }
 
 export async function GET() {
-  return new Response('Telegram webhook is alive')
+  return new Response("Telegram webhook is alive")
 }
