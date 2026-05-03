@@ -1,65 +1,53 @@
-import { NextResponse } from 'next/server'
+import { NextResponse } from "next/server"
+
+export const runtime = "nodejs"
 
 export async function POST(req: Request) {
   try {
-    const formData = await req.formData()
+    const body = await req.json()
 
-    const name = formData.get('name')?.toString() ?? ''
-    const instagram = formData.get('instagram')?.toString() ?? ''
-    const email = formData.get('email')?.toString() ?? ''
+    const { name, instagram, country, email, token } = body
 
-    const message = `
-🚀 New Lead OFM
-
-👤 Name: ${name}
-📸 Instagram: ${instagram}
-📧 Email: ${email}
-`
-
-    const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN
-    const CHAT_ID = process.env.TELEGRAM_CHAT_ID
-
-    // ✅ Sécurité
-    if (!BOT_TOKEN || !CHAT_ID) {
-      console.error('ENV ERROR:', { BOT_TOKEN, CHAT_ID })
-      return NextResponse.json(
-        { success: false, error: 'Missing Telegram config' },
-        { status: 500 }
-      )
+    if (!name || !instagram || !country || !email) {
+      return NextResponse.json({ error: "Missing fields" }, { status: 400 })
     }
 
-    const response = await fetch(
-      `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,
+    const supabaseUrl = process.env.SUPABASE_URL
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    const turnstileSecret = process.env.TURNSTILE_SECRET_KEY
+
+    if (!supabaseUrl || !supabaseKey || !turnstileSecret) {
+      console.error("Missing ENV")
+      return NextResponse.json({ error: "Server config error" }, { status: 500 })
+    }
+
+    const verifyRes = await fetch(
+      "https://challenges.cloudflare.com/turnstile/v0/siteverify",
       {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          chat_id: CHAT_ID,
-          text: message,
-        }),
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: `secret=${turnstileSecret}&response=${token}`,
       }
     )
 
-    // ✅ Vérif Telegram
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error('Telegram API error:', errorText)
+    const verifyData = await verifyRes.json()
 
-      return NextResponse.json(
-        { success: false, error: 'Telegram failed' },
-        { status: 500 }
-      )
+    if (!verifyData.success) {
+      return NextResponse.json({ error: "Captcha failed" }, { status: 400 })
     }
 
-    return NextResponse.json({ success: true })
-  } catch (error) {
-    console.error('API ERROR:', error)
+    const { createClient } = await import("@supabase/supabase-js")
 
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    )
+    const supabase = createClient(supabaseUrl, supabaseKey)
+
+    await supabase.from("leads").insert([
+      { name, instagram, email, country },
+    ])
+
+    return NextResponse.json({ success: true })
+
+  } catch (err) {
+    console.error(err)
+    return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }
